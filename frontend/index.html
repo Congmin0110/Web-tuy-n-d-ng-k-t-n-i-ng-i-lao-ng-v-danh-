@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>MVP Demo Nhóm</title>
+</head>
+<body style="font-family: sans-serif; padding: 40px; text-align: center;">
+  <h1>Trạng thái kết nối Hệ thống (MVP)</h1>
+  <div id="ket-qua" style="padding: 20px; border: 1px solid #ccc; margin-top: 20px;">
+    Đang gọi Backend & Database...
+  </div>
+
+  <script>
+    const API_URL = "https://LINK-RENDER-CUA-BAN.onrender.com/api/test";
+
+    fetch(API_URL)
+      .then(res => res.json())
+      .then(result => {
+        document.getElementById('ket-qua').innerHTML = `
+          <h2 style="color: green;">Kết nối thành công!</h2>
+          <pre>${JSON.stringify(result, null, 2)}</pre>
+        `;
+      })
+      .catch(err => {
+        document.getElementById('ket-qua').innerHTML = `
+          <h2 style="color: red;">Lỗi kết nối: ${err.message}</h2>
+        `;
+      });
+  </script>
+</body>
+</html>
