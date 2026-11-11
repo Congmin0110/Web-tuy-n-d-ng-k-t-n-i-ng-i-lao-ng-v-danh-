@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hồ sơ của tôi — Kết Nối Việc</title>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>body { font-family: "Be Vietnam Pro", sans-serif; }</style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+  <div id="site-header"></div>
+
+  <main class="mx-auto max-w-3xl px-4 py-8">
+    <!-- === KHU VỰC 1: QUẢN LÝ HỒ SƠ VÀ LINK CV === -->
+    <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <h1 class="text-2xl font-bold">Hồ sơ người lao động</h1>
+      <p class="mt-1 text-sm text-slate-500">Link CV lưu ở đây sẽ được điền sẵn mỗi lần bạn nộp hồ sơ.</p>
+      <p id="alert" class="mt-4 hidden"></p>
+      <form id="profile-form" class="mt-5 grid gap-3">
+        <label class="text-sm font-medium">Họ tên
+          <input id="name" required class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2">
+        </label>
+        <label class="text-sm font-medium">Email
+          <input id="email" disabled class="mt-1 w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2">
+        </label>
+        <label class="text-sm font-medium">Số điện thoại
+          <input id="phone" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2">
+        </label>
+        <label class="text-sm font-medium">Địa chỉ
+          <input id="address" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2">
+        </label>
+        <label class="text-sm font-medium">Kỹ năng
+          <input id="skills" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" placeholder="Ví dụ: giao tiếp, Excel, tiếng Anh">
+        </label>
+        <label class="text-sm font-medium">Giới thiệu ngắn
+          <textarea id="bio" rows="4" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2"></textarea>
+        </label>
+        <label class="text-sm font-medium">Link CV (PDF hoặc Google Drive công khai)
+          <input id="cvLink" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" placeholder="https://">
+        </label>
+        <button class="rounded-xl bg-emerald-600 px-4 py-2 font-semibold text-white hover:bg-emerald-700" type="submit">Lưu hồ sơ</button>
+      </form>
+    </section>
+  </main>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/nav.js"></script>
+  <script>
+    renderHeader();
+    if (!requireRole(['user'])) {
+      // requireRole đã chuyển về trang đăng nhập
+    } else {
+      khoiTaoTrangHoSo();
+    }
+
+    // === KHU VỰC 1: TẢI VÀ LƯU HỒ SƠ ===
+    function dienForm(user) {
+      document.getElementById('name').value = user.name || '';
+      document.getElementById('email').value = user.email || '';
+      document.getElementById('phone').value = user.phone || '';
+      document.getElementById('address').value = user.address || '';
+      document.getElementById('skills').value = user.skills || '';
+      document.getElementById('bio').value = user.bio || '';
+      document.getElementById('cvLink').value = user.cvLink || '';
+    }
+
+    async function khoiTaoTrangHoSo() {
+      try {
+        const data = await apiRequest('/api/profile');
+        dienForm(data.user);
+      } catch (error) {
+        setAlert('alert', error.message, 'error');
+      }
+    }
+
+    async function luuHoSo(event) {
+      event.preventDefault();
+      setAlert('alert', '');
+      try {
+        const data = await apiRequest('/api/profile', {
+          method: 'PUT',
+          body: JSON.stringify({
+            name: document.getElementById('name').value.trim(),
+            phone: document.getElementById('phone').value.trim(),
+            address: document.getElementById('address').value.trim(),
+            skills: document.getElementById('skills').value.trim(),
+            bio: document.getElementById('bio').value.trim(),
+            cvLink: document.getElementById('cvLink').value.trim()
+          })
+        });
+        const session = getUser();
+        session.name = data.user.name;
+        session.cvLink = data.user.cvLink || '';
+        localStorage.setItem('user', JSON.stringify(session));
+        renderHeader();
+        setAlert('alert', data.message, 'success');
+      } catch (error) {
+        setAlert('alert', error.message, 'error');
+      }
+    }
+
+    document.getElementById('profile-form').addEventListener('submit', luuHoSo);
+  </script>
+</body>
+</html>

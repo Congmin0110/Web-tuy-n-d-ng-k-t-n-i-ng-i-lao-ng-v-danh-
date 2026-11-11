@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kiểm duyệt — Kết Nối Việc</title>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>body { font-family: "Be Vietnam Pro", sans-serif; }</style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+  <div id="site-header"></div>
+
+  <main class="mx-auto max-w-6xl px-4 py-8">
+    <h1 class="text-2xl font-bold">Bảng kiểm duyệt</h1>
+    <p class="mt-1 text-sm text-slate-500">Duyệt tin hợp lệ, ẩn tin có dấu hiệu lừa đảo và khóa tài khoản vi phạm.</p>
+    <p id="alert" class="mt-4 hidden"></p>
+
+    <!-- === KHU VỰC 1: SỐ LIỆU NHANH === -->
+    <section id="stats" class="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"></section>
+
+    <!-- === KHU VỰC 2: DUYỆT VÀ ẨN TIN === -->
+    <section class="mt-8">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <h2 class="text-xl font-bold">Tin tuyển dụng</h2>
+        <select id="job-status" class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
+          <option value="">Tất cả trạng thái</option>
+          <option value="pending" selected>Chờ duyệt</option>
+          <option value="approved">Đang hiện</option>
+          <option value="rejected">Đã ẩn</option>
+        </select>
+      </div>
+      <div id="job-list" class="mt-4 grid gap-4"></div>
+    </section>
+
+    <!-- === KHU VỰC 3: QUẢN LÝ TÀI KHOẢN === -->
+    <section class="mt-10">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <h2 class="text-xl font-bold">Người dùng và doanh nghiệp</h2>
+        <select id="user-role" class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
+          <option value="">Mọi vai trò</option>
+          <option value="user">Người lao động</option>
+          <option value="employer">Doanh nghiệp</option>
+          <option value="admin">Quản trị</option>
+        </select>
+      </div>
+      <div id="user-list" class="mt-4 overflow-x-auto rounded-2xl border border-slate-200 bg-white"></div>
+    </section>
+
+    <!-- === KHU VỰC 4: DỮ LIỆU MẪU === -->
+    <section class="mt-10 rounded-2xl bg-slate-100 p-5">
+      <h2 class="font-bold">Tạo dữ liệu mẫu</h2>
+      <p class="mt-1 text-sm text-slate-600">API này chỉ chạy khi database chưa có tài khoản. Không ghi đè dữ liệu đang có.</p>
+      <button id="btn-seed" type="button" class="mt-3 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Gọi API seed</button>
+    </section>
+  </main>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/nav.js"></script>
+  <script>
+    renderHeader();
+    if (requireRole(['admin'])) {
+      taiThongKe();
+      taiTin();
+      taiNguoiDung();
+    }
+
+    const TEN_ROLE = { user: 'Người lao động', employer: 'Doanh nghiệp', admin: 'Quản trị' };
+
+    // === KHU VỰC 1: SỐ LIỆU NHANH ===
+    function veThongKe(stats) {
+      const items = [
+        ['Ứng viên', stats.users],
+        ['Doanh nghiệp', stats.employers],
+        ['Tin chờ duyệt', stats.pending],
+        ['Tin đang hiện', stats.approved],
+        ['Tin đã ẩn', stats.rejected],
+        ['Hồ sơ đã nộp', stats.applications]
+      ];
+      document.getElementById('stats').innerHTML = items.map(function (item) {
+        return '<article class="rounded-2xl border border-slate-200 bg-white p-4"><p class="text-sm text-slate-500">' + item[0] + '</p><p class="mt-1 text-2xl font-bold">' + item[1] + '</p></article>';
+      }).join('');
+    }
+
+    async function taiThongKe() {
+      try {
+        const data = await apiRequest('/api/admin/stats');
+        veThongKe(data.stats);
+      } catch (error) {
+        setAlert('alert', error.message, 'error');
+      }
+    }
+
+    // === KHU VỰC 2: DUYỆT VÀ ẨN TIN GIẢ ===
+    function veTin(job) {
+      const employer = job.employerId || {};
+      const tenCty = employer.companyName || job.companyName || employer.name || '';
+      return ''
+        + '<article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" data-id="' + job._id + '">'
+        + '  <div class="flex flex-wrap items-start justify-between gap-3">'
+        + '    <div>'
+        + '      <h3 class="text-lg font-bold">' + escapeHtml(job.title) + '</h3>'
+        + '      <p class="text-sm text-slate-500">' + escapeHtml(tenCty) + ' · ' + escapeHtml(job.location) + ' · ' + escapeHtml(job.category) + '</p>'
+        + '      <p class="mt-1 text-sm font-semibold">' + escapeHtml(formatSalary(job.salaryMin, job.salaryMax)) + '</p>'
+        + '    </div>'
+        + statusBadge('job', job.status)
+        + '  </div>'
+        + '  <p class="mt-3 text-sm leading-6 text-slate-700">' + formatMultiline(job.description) + '</p>'
+        + (job.requirements ? '<p class="mt-2 text-sm text-slate-600"><b>Yêu cầu:</b> ' + formatMultiline(job.requirements) + '</p>' : '')
+        + (job.rejectReason ? '<p class="mt-2 text-sm text-rose-700">Lý do ẩn: ' + escapeHtml(job.rejectReason) + '</p>' : '')
+        + '  <div class="mt-4 flex flex-wrap gap-2">'
+        + '    <button type="button" data-action="approve" class="rounded-xl bg-emerald-600 px-3 py-2 text-sm font-semibold text-white">Duyệt tin</button>'
+        + '    <button type="button" data-action="reject" class="rounded-xl bg-rose-600 px-3 py-2 text-sm font-semibold text-white">Ẩn tin giả</button>'
+        + '  </div>'
+        + '</article>';
+    }
+
+    async function taiTin() {
+      const status = document.getElementById('job-status').value;
+      const path = '/api/admin/jobs' + (status ? '?status=' + encodeURIComponent(status) : '');
+      try {
+        const data = await apiRequest(path);
+        const jobs = data.jobs || [];
+        const box = document.getElementById('job-list');
+        if (!jobs.length) {
+          box.innerHTML = '<div class="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-slate-500">Không có tin ở trạng thái này.</div>';
+          return;
+        }
+        box.innerHTML = jobs.map(veTin).join('');
+      } catch (error) {
+        setAlert('alert', error.message, 'error');
+      }
+    }
+
+    async function duyetHoacAn(id, action) {
+      try {
+        let data;
+        if (action === 'approve') {
+          data = await apiRequest('/api/admin/jobs/' + id + '/approve', { method: 'PUT', body: '{}' });
+        } else {
+          const reason = window.prompt('Lý do ẩn tin:', 'Nghi ngờ tin không trung thực hoặc có dấu hiệu lừa đảo.');
+          if (reason === null) return;
+          data = await apiRequest('/api/admin/jobs/' + id + '/reject', {
+            method: 'PUT',
+            body: JSON.stringify({ reason: reason })
+          });
+        }
+        setAlert('alert', data.message, 'success');
+        taiTin();
+        taiThongKe();
+      } catch (error) {
+        setAlert('alert', error.message, 'error');
+      }
+    }
+
+    // === KHU VỰC 3: KHÓA / MỞ TÀI KHOẢN ===
+    function veBangNguoiDung(users) {
+      const rows = users.map(function (user) {
+        const nut = user.role === 'admin'
+          ? ''
+          : '<button type="button" data-action="block" data-id="' + user._id + '" data-blocked="' + (user.isBlocked ? '1' : '0') + '" class="rounded-lg border px-3 py-1 text-xs font-semibold">' + (user.isBlocked ? 'Mở khóa' : 'Khóa') + '</button>';
+        return '<tr class="border-t border-slate-100">'
+          + '<td class="px-4 py-3">' + escapeHtml(user.name) + '<div class="text-xs text-slate-500">' + escapeHtml(user.email) + '</div></td>'
+          + '<td class="px-4 py-3">' + escapeHtml(user.companyName || '—') + '</td>'
+          + '<td class="px-4 py-3">' + escapeHtml(TEN_ROLE[user.role] || user.role) + '</td>'
+          + '<td class="px-4 py-3">' + (user.isBlocked ? 'Đang khóa' : 'Đang hoạt động') + '</td>'
+          + '<td class="px-4 py-3">' + nut + '</td>'
+          + '</tr>';
+      }).join('');
+
+      document.getElementById('user-list').innerHTML = ''
+        + '<table class="min-w-full text-left text-sm">'
+        + '<thead class="bg-slate-50 text-slate-500"><tr>'
+        + '<th class="px-4 py-3 font-medium">Tài khoản</th>'
+        + '<th class="px-4 py-3 font-medium">Doanh nghiệp</th>'
+        + '<th class="px-4 py-3 font-medium">Vai trò</th>'
+        + '<th class="px-4 py-3 font-medium">Trạng thái</th>'
+        + '<th class="px-4 py-3 font-medium"></th>'
+        + '</tr></thead><tbody>' + rows + '</tbody></table>';
+    }
+
+    async function taiNguoiDung() {
+      const role = document.getElementById('user-role').value;
+      const path = '/api/admin/users' + (role ? '?role=' + encodeURIComponent(role) : '');
+      try {
+        const data = await apiRequest(path);
+        veBangNguoiDung(data.users || []);
+      } catch (error) {
+        setAlert('alert', error.message, 'error');
+      }
+    }
+
+    async function khoaTaiKhoan(button) {
+      const id = button.getAttribute('data-id');
+      const dangKhoa = button.getAttribute('data-blocked') === '1';
+      try {
+        const data = await apiRequest('/api/admin/users/' + id + '/block', {
+          method: 'PUT',
+          body: JSON.stringify({ isBlocked: !dangKhoa })
+        });
+        setAlert('alert', data.message, 'success');
+        taiNguoiDung();
+      } catch (error) {
+        setAlert('alert', error.message, 'error');
+      }
+    }
+
+    // === KHU VỰC 4: GỌI SEED ===
+    async function goiSeed() {
+      try {
+        const data = await apiRequest('/api/admin/seed', { method: 'POST', body: '{}' });
+        setAlert('alert', data.message, 'success');
+      } catch (error) {
+        setAlert('alert', error.message, 'error');
+      }
+    }
+
+    document.getElementById('job-status').addEventListener('change', taiTin);
+    document.getElementById('user-role').addEventListener('change', taiNguoiDung);
+    document.getElementById('btn-seed').addEventListener('click', goiSeed);
+    document.getElementById('job-list').addEventListener('click', function (event) {
+      const button = event.target.closest('button');
+      if (!button) return;
+      const card = button.closest('[data-id]');
+      duyetHoacAn(card.getAttribute('data-id'), button.getAttribute('data-action'));
+    });
+    document.getElementById('user-list').addEventListener('click', function (event) {
+      const button = event.target.closest('[data-action="block"]');
+      if (!button) return;
+      khoaTaiKhoan(button);
+    });
+  </script>
+</body>
+</html>

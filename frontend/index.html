@@ -2,30 +2,218 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <title>MVP Demo Nhóm</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kết Nối Việc — Tìm việc làm</title>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>body { font-family: "Be Vietnam Pro", sans-serif; }</style>
 </head>
-<body style="font-family: sans-serif; padding: 40px; text-align: center;">
-  <h1>Trạng thái kết nối Hệ thống (MVP)</h1>
-  <div id="ket-qua" style="padding: 20px; border: 1px solid #ccc; margin-top: 20px;">
-    Đang gọi Backend & Database...
+<body class="bg-slate-50 text-slate-800">
+  <div id="site-header"></div>
+
+  <main class="mx-auto max-w-6xl px-4 py-8">
+    <!-- === KHU VỰC 1: TÌM KIẾM VÀ LỌC VIỆC LÀM === -->
+    <section class="rounded-3xl bg-gradient-to-br from-emerald-700 to-teal-900 px-6 py-10 text-white shadow-lg">
+      <p class="text-sm font-medium text-emerald-100">Website tuyển dụng kết nối người lao động và doanh nghiệp</p>
+      <h1 class="mt-2 max-w-2xl text-3xl font-bold leading-tight md:text-4xl">Tìm việc phù hợp lương, nơi làm và ngành nghề</h1>
+      <p class="mt-3 max-w-2xl text-emerald-50">Tin trên trang này đã được quản trị viên duyệt. Bạn nộp CV bằng một đường link, sau đó theo dõi lịch phỏng vấn trong mục đơn đã nộp.</p>
+    </section>
+
+    <form id="filter-form" class="-mt-6 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-md md:grid-cols-5">
+      <input id="q" class="rounded-xl border border-slate-300 px-3 py-2 md:col-span-2" placeholder="Tên việc hoặc công ty">
+      <input id="location" class="rounded-xl border border-slate-300 px-3 py-2" placeholder="Địa điểm, ví dụ Hà Nội">
+      <select id="category" class="rounded-xl border border-slate-300 px-3 py-2"></select>
+      <select id="salaryMin" class="rounded-xl border border-slate-300 px-3 py-2">
+        <option value="">Mức lương khởi điểm</option>
+        <option value="5000000">Từ 5 triệu</option>
+        <option value="8000000">Từ 8 triệu</option>
+        <option value="10000000">Từ 10 triệu</option>
+        <option value="15000000">Từ 15 triệu</option>
+        <option value="20000000">Từ 20 triệu</option>
+      </select>
+      <button class="rounded-xl bg-emerald-600 px-4 py-2 font-semibold text-white hover:bg-emerald-700 md:col-span-5" type="submit">Tìm việc</button>
+    </form>
+
+    <p id="alert" class="mt-4 hidden"></p>
+    <p id="result-count" class="mt-6 text-sm text-slate-500">Đang tải việc làm... Nếu vừa mở trang, server Render có thể cần khoảng 30 giây để khởi động.</p>
+    <div id="job-list" class="mt-4 grid gap-4 md:grid-cols-2"></div>
+  </main>
+
+  <!-- === KHU VỰC 2: XEM CHI TIẾT VÀ NỘP CV === -->
+  <div id="job-modal" class="fixed inset-0 z-40 hidden items-center justify-center bg-slate-900/50 p-4">
+    <div class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <p id="detail-company" class="text-sm font-medium text-emerald-700"></p>
+          <h2 id="detail-title" class="text-2xl font-bold"></h2>
+        </div>
+        <button id="close-modal" type="button" class="rounded-full px-3 py-1 text-slate-500 hover:bg-slate-100">Đóng</button>
+      </div>
+      <p id="detail-meta" class="mt-3 text-sm text-slate-500"></p>
+      <h3 class="mt-5 font-semibold">Mô tả công việc</h3>
+      <p id="detail-description" class="mt-2 text-sm leading-6 text-slate-700"></p>
+      <h3 class="mt-5 font-semibold">Yêu cầu</h3>
+      <p id="detail-requirements" class="mt-2 text-sm leading-6 text-slate-700"></p>
+
+      <div id="apply-box" class="mt-6 rounded-2xl bg-slate-50 p-4"></div>
+    </div>
   </div>
 
-  <script>
-    const API_URL = "https://web-tuy-n-d-ng-k-t-n-i-ng-i-lao-ng-v-danh.onrender.com/api/test";
+  <footer class="border-t border-slate-200 py-6 text-center text-sm text-slate-500">
+    Website tuyển dụng kết nối người lao động và doanh nghiệp
+  </footer>
 
-    fetch(API_URL)
-      .then(res => res.json())
-      .then(result => {
-        document.getElementById('ket-qua').innerHTML = `
-          <h2 style="color: green;">Kết nối thành công!</h2>
-          <pre>${JSON.stringify(result, null, 2)}</pre>
-        `;
-      })
-      .catch(err => {
-        document.getElementById('ket-qua').innerHTML = `
-          <h2 style="color: red;">Lỗi kết nối: ${err.message}</h2>
-        `;
+  <script src="js/api.js"></script>
+  <script src="js/nav.js"></script>
+  <script>
+    renderHeader();
+    fillCategorySelect(document.getElementById('category'), true);
+
+    let viecDangXem = null;
+
+    // === KHU VỰC 1: TÌM KIẾM VÀ LỌC VIỆC LÀM ===
+    function taoQueryTimKiem() {
+      const params = new URLSearchParams();
+      const q = document.getElementById('q').value.trim();
+      const location = document.getElementById('location').value.trim();
+      const category = document.getElementById('category').value;
+      const salaryMin = document.getElementById('salaryMin').value;
+      if (q) params.set('q', q);
+      if (location) params.set('location', location);
+      if (category) params.set('category', category);
+      if (salaryMin) params.set('salaryMin', salaryMin);
+      const qs = params.toString();
+      return '/api/jobs' + (qs ? '?' + qs : '');
+    }
+
+    function veDanhSachViec(jobs) {
+      const list = document.getElementById('job-list');
+      document.getElementById('result-count').textContent = 'Tìm thấy ' + jobs.length + ' việc làm đã được duyệt.';
+      if (!jobs.length) {
+        list.innerHTML = '<div class="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-slate-500 md:col-span-2">Chưa có tin phù hợp bộ lọc. Hãy bỏ bớt điều kiện hoặc đợi nhà tuyển dụng đăng tin mới.</div>';
+        return;
+      }
+
+      list.innerHTML = jobs.map((job) => {
+        return ''
+          + '<article class="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">'
+          + '  <p class="text-sm font-medium text-emerald-700">' + escapeHtml(job.companyName || 'Doanh nghiệp') + '</p>'
+          + '  <h2 class="mt-1 text-lg font-bold">' + escapeHtml(job.title) + '</h2>'
+          + '  <p class="mt-2 text-sm text-slate-500">' + escapeHtml(job.location) + ' · ' + escapeHtml(job.category) + '</p>'
+          + '  <p class="mt-2 text-sm font-semibold text-slate-800">' + escapeHtml(formatSalary(job.salaryMin, job.salaryMax)) + '</p>'
+          + '  <button type="button" data-id="' + job._id + '" class="btn-detail mt-4 self-start rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">Xem và nộp CV</button>'
+          + '</article>';
+      }).join('');
+    }
+
+    async function taiDanhSachViec() {
+      setAlert('alert', '');
+      document.getElementById('result-count').textContent = 'Đang tải việc làm...';
+      try {
+        const data = await apiRequest(taoQueryTimKiem());
+        veDanhSachViec(data.jobs || []);
+      } catch (error) {
+        document.getElementById('job-list').innerHTML = '';
+        document.getElementById('result-count').textContent = '';
+        setAlert('alert', error.message, 'error');
+      }
+    }
+
+    document.getElementById('filter-form').addEventListener('submit', function (event) {
+      event.preventDefault();
+      taiDanhSachViec();
+    });
+
+    document.getElementById('job-list').addEventListener('click', function (event) {
+      const button = event.target.closest('.btn-detail');
+      if (!button) return;
+      moChiTiet(button.getAttribute('data-id'));
+    });
+
+    // === KHU VỰC 2: XEM CHI TIẾT VÀ NỘP CV ===
+    function veFormNopCV(job) {
+      const box = document.getElementById('apply-box');
+      const user = getUser();
+
+      if (!user) {
+        box.innerHTML = '<p class="text-sm">Bạn cần đăng nhập bằng tài khoản ứng viên để nộp CV.</p><a class="mt-3 inline-block font-semibold text-emerald-700" href="login.html">Đến trang đăng nhập</a>';
+        return;
+      }
+
+      if (user.role !== 'user') {
+        box.innerHTML = '<p class="text-sm">Chỉ tài khoản người lao động mới nộp được CV. Tài khoản doanh nghiệp dùng mục Tin tuyển dụng.</p>';
+        return;
+      }
+
+      box.innerHTML = ''
+        + '<h3 class="font-semibold">Nộp CV</h3>'
+        + '<p id="apply-alert" class="mt-2 hidden"></p>'
+        + '<form id="apply-form" class="mt-3 grid gap-3">'
+        + '  <input id="cvLink" required class="rounded-xl border border-slate-300 px-3 py-2" placeholder="https://... link CV của bạn" value="' + escapeHtml(user.cvLink || '') + '">'
+        + '  <textarea id="note" rows="3" class="rounded-xl border border-slate-300 px-3 py-2" placeholder="Lời nhắn ngắn cho nhà tuyển dụng"></textarea>'
+        + '  <button class="rounded-xl bg-emerald-600 px-4 py-2 font-semibold text-white hover:bg-emerald-700" type="submit">Nộp hồ sơ</button>'
+        + '</form>';
+
+      document.getElementById('apply-form').addEventListener('submit', function (event) {
+        event.preventDefault();
+        nopCV(job._id);
       });
+    }
+
+    async function moChiTiet(jobId) {
+      try {
+        const data = await apiRequest('/api/jobs/' + jobId);
+        viecDangXem = data.job;
+        document.getElementById('detail-company').textContent = data.job.companyName || 'Doanh nghiệp';
+        document.getElementById('detail-title').textContent = data.job.title;
+        document.getElementById('detail-meta').textContent = data.job.location + ' · ' + data.job.category + ' · ' + formatSalary(data.job.salaryMin, data.job.salaryMax);
+        document.getElementById('detail-description').innerHTML = formatMultiline(data.job.description);
+        document.getElementById('detail-requirements').innerHTML = formatMultiline(data.job.requirements || 'Nhà tuyển dụng chưa ghi yêu cầu chi tiết.');
+        veFormNopCV(data.job);
+        const modal = document.getElementById('job-modal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      } catch (error) {
+        setAlert('alert', error.message, 'error');
+      }
+    }
+
+    function dongChiTiet() {
+      const modal = document.getElementById('job-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    async function nopCV(jobId) {
+      setAlert('apply-alert', '');
+      const button = document.querySelector('#apply-form button');
+      button.disabled = true;
+      try {
+        const data = await apiRequest('/api/applications', {
+          method: 'POST',
+          body: JSON.stringify({
+            jobId: jobId,
+            cvLink: document.getElementById('cvLink').value.trim(),
+            note: document.getElementById('note').value.trim()
+          })
+        });
+        const user = getUser();
+        user.cvLink = document.getElementById('cvLink').value.trim();
+        localStorage.setItem('user', JSON.stringify(user));
+        setAlert('apply-alert', data.message + ' Bạn có thể theo dõi lịch ở mục Đơn đã nộp.', 'success');
+      } catch (error) {
+        setAlert('apply-alert', error.message, 'error');
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    document.getElementById('close-modal').addEventListener('click', dongChiTiet);
+    document.getElementById('job-modal').addEventListener('click', function (event) {
+      if (event.target.id === 'job-modal') dongChiTiet();
+    });
+
+    taiDanhSachViec();
   </script>
 </body>
 </html>

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Đăng nhập — Kết Nối Việc</title>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>body { font-family: "Be Vietnam Pro", sans-serif; }</style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+  <div id="site-header"></div>
+
+  <main class="mx-auto grid max-w-6xl gap-6 px-4 py-8 lg:grid-cols-2">
+    <!-- === KHU VỰC 1: ĐĂNG NHẬP === -->
+    <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <h1 class="text-2xl font-bold">Đăng nhập</h1>
+      <p class="mt-1 text-sm text-slate-500">Hệ thống tự chuyển đến trang đúng vai trò sau khi đăng nhập.</p>
+      <p id="login-alert" class="mt-4 hidden"></p>
+      <form id="login-form" class="mt-4 grid gap-3">
+        <label class="text-sm font-medium">Email
+          <input id="login-email" type="email" required class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2">
+        </label>
+        <label class="text-sm font-medium">Mật khẩu
+          <input id="login-password" type="password" required class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2">
+        </label>
+        <button class="rounded-xl bg-emerald-600 px-4 py-2 font-semibold text-white hover:bg-emerald-700" type="submit">Đăng nhập</button>
+      </form>
+    </section>
+
+    <!-- === KHU VỰC 2: ĐĂNG KÝ === -->
+    <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <h2 class="text-2xl font-bold">Đăng ký tài khoản mới</h2>
+      <p class="mt-1 text-sm text-slate-500">Chọn Ứng viên nếu bạn đi tìm việc. Chọn Doanh nghiệp nếu bạn cần đăng tin.</p>
+      <p id="register-alert" class="mt-4 hidden"></p>
+      <form id="register-form" class="mt-4 grid gap-3">
+        <label class="text-sm font-medium">Họ tên
+          <input id="reg-name" required class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2">
+        </label>
+        <label class="text-sm font-medium">Email
+          <input id="reg-email" type="email" required class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2">
+        </label>
+        <label class="text-sm font-medium">Mật khẩu (tối thiểu 6 ký tự)
+          <input id="reg-password" type="password" minlength="6" required class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2">
+        </label>
+        <label class="text-sm font-medium">Số điện thoại
+          <input id="reg-phone" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2">
+        </label>
+        <fieldset class="text-sm">
+          <legend class="font-medium">Bạn là</legend>
+          <label class="mr-4 mt-2 inline-flex items-center gap-2"><input type="radio" name="role" value="user" checked> Người lao động</label>
+          <label class="inline-flex items-center gap-2"><input type="radio" name="role" value="employer"> Doanh nghiệp</label>
+        </fieldset>
+        <label id="company-wrap" class="hidden text-sm font-medium">Tên doanh nghiệp
+          <input id="reg-company" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2">
+        </label>
+        <button class="rounded-xl bg-slate-900 px-4 py-2 font-semibold text-white hover:bg-slate-700" type="submit">Tạo tài khoản</button>
+      </form>
+    </section>
+
+    <!-- === KHU VỰC 3: TÀI KHOẢN MẪU ĐỂ BẢO VỆ === -->
+    <section class="rounded-3xl bg-emerald-50 p-6 text-sm text-emerald-950 lg:col-span-2">
+      <h2 class="text-lg font-bold">Tài khoản mẫu khi database còn trống</h2>
+      <p class="mt-2">Lần đầu kết nối MongoDB, server tự tạo 3 tài khoản. Mật khẩu chung là <b>123456</b>.</p>
+      <ul class="mt-3 grid gap-2 md:grid-cols-3">
+        <li class="rounded-2xl bg-white p-3"><b>admin@demo.vn</b><br>Quản trị, duyệt tin và khóa tài khoản</li>
+        <li class="rounded-2xl bg-white p-3"><b>nhatuyendung@demo.vn</b><br>Doanh nghiệp, đăng tin và đặt lịch</li>
+        <li class="rounded-2xl bg-white p-3"><b>ungvien@demo.vn</b><br>Người lao động, nộp CV và xem lịch</li>
+      </ul>
+    </section>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script src="js/nav.js"></script>
+  <script>
+    renderHeader();
+
+    // === KHU VỰC 1: CHUYỂN TRANG THEO ROLE ===
+    function chuyenTheoRole(role) {
+      if (role === 'admin') window.location.href = 'admin/dashboard.html';
+      else if (role === 'employer') window.location.href = 'employer/dashboard.html';
+      else window.location.href = 'index.html';
+    }
+
+    const daDangNhap = getUser();
+    if (daDangNhap) chuyenTheoRole(daDangNhap.role);
+
+    async function guiDangNhap(event) {
+      event.preventDefault();
+      setAlert('login-alert', '');
+      try {
+        const data = await apiRequest('/api/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({
+            email: document.getElementById('login-email').value.trim(),
+            password: document.getElementById('login-password').value
+          })
+        });
+        saveSession(data.token, data.user);
+        chuyenTheoRole(data.user.role);
+      } catch (error) {
+        setAlert('login-alert', error.message, 'error');
+      }
+    }
+
+    // === KHU VỰC 2: ĐĂNG KÝ ===
+    function hienTenCongTy() {
+      const role = document.querySelector('input[name="role"]:checked').value;
+      document.getElementById('company-wrap').classList.toggle('hidden', role !== 'employer');
+    }
+
+    async function guiDangKy(event) {
+      event.preventDefault();
+      setAlert('register-alert', '');
+      const role = document.querySelector('input[name="role"]:checked').value;
+      try {
+        const data = await apiRequest('/api/auth/register', {
+          method: 'POST',
+          body: JSON.stringify({
+            name: document.getElementById('reg-name').value.trim(),
+            email: document.getElementById('reg-email').value.trim(),
+            password: document.getElementById('reg-password').value,
+            phone: document.getElementById('reg-phone').value.trim(),
+            role: role,
+            companyName: document.getElementById('reg-company').value.trim()
+          })
+        });
+        saveSession(data.token, data.user);
+        chuyenTheoRole(data.user.role);
+      } catch (error) {
+        setAlert('register-alert', error.message, 'error');
+      }
+    }
+
+    document.getElementById('login-form').addEventListener('submit', guiDangNhap);
+    document.getElementById('register-form').addEventListener('submit', guiDangKy);
+    document.querySelectorAll('input[name="role"]').forEach(function (input) {
+      input.addEventListener('change', hienTenCongTy);
+    });
+  </script>
+</body>
+</html>
